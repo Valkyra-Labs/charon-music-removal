@@ -1,0 +1,379 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Music Removal Prototype</title>
+<style>
+:root {
+  --bg: #f4f3ef; --panel: #ffffff; --panel-2: #f0eee8; --line: #dedad0;
+  --text: #1d1c1a; --muted: #6b675f; --accent: #2f6f5e; --accent-weak: #d8ebe4;
+  --music: #d9822b; --music-weak: rgba(217,130,43,.18); --speech: #3c6fb0;
+  --wave: #9a958a; --wave-clean: #2f6f5e; --danger: #b3412e;
+  --radius: 10px; --shadow: 0 1px 2px rgba(0,0,0,.06), 0 4px 16px rgba(0,0,0,.05);
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #151514; --panel: #1f1e1c; --panel-2: #272624; --line: #36342f;
+    --text: #ecebe6; --muted: #a09c93; --accent: #5fb39a; --accent-weak: #1f3a32;
+    --music: #e59a4c; --music-weak: rgba(229,154,76,.2); --speech: #7aa5dd;
+    --wave: #6f6b63; --wave-clean: #5fb39a; --danger: #e0735f;
+    --shadow: 0 1px 2px rgba(0,0,0,.4);
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #151514; --panel: #1f1e1c; --panel-2: #272624; --line: #36342f;
+  --text: #ecebe6; --muted: #a09c93; --accent: #5fb39a; --accent-weak: #1f3a32;
+  --music: #e59a4c; --music-weak: rgba(229,154,76,.2); --speech: #7aa5dd;
+  --wave: #6f6b63; --wave-clean: #5fb39a; --danger: #e0735f;
+  --shadow: 0 1px 2px rgba(0,0,0,.4);
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; background: var(--bg); color: var(--text);
+  font: 14px/1.45 -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif; }
+button { font: inherit; color: inherit; cursor: pointer; }
+.app { max-width: 1180px; margin: 0 auto; padding: 16px; display: grid; gap: 12px;
+  grid-template-columns: 1fr 300px; grid-template-areas: "top top" "col side"; align-items: start; }
+.col { grid-area: col; display: grid; gap: 12px; min-width: 0; }
+.card { background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); box-shadow: var(--shadow); }
+.top { grid-area: top; display: flex; align-items: center; gap: 12px; padding: 10px 14px; flex-wrap: wrap; }
+.top .file { font-weight: 600; }
+.top .meta { color: var(--muted); }
+.badge { display: inline-flex; align-items: center; gap: 6px; padding: 3px 9px; border-radius: 999px;
+  background: var(--accent-weak); color: var(--accent); font-size: 12px; font-weight: 600; }
+.spacer { flex: 1; }
+.btn { border: 1px solid var(--line); background: var(--panel-2); border-radius: 8px; padding: 7px 12px; }
+.btn.primary { background: var(--accent); border-color: var(--accent); color: #fff; font-weight: 600; }
+.btn.ghost { background: transparent; }
+.video { padding: 14px; }
+.screen { position: relative; width: 100%; aspect-ratio: 16 / 9; max-height: 46vh; background: #000; border-radius: 8px; overflow: hidden; margin: 0 auto; }
+.screen canvas { width: 100%; height: 100%; border-radius: 0; background: #000; }
+.screen .tc { position: absolute; left: 10px; bottom: 8px; color: #fff; font: 12px/1 ui-monospace, SFMono-Regular, Menlo, monospace; background: rgba(0,0,0,.55); padding: 4px 6px; border-radius: 4px; }
+.screen .codec { position: absolute; right: 10px; top: 8px; color: #fff; font-size: 11px; background: rgba(0,0,0,.55); padding: 3px 6px; border-radius: 4px; }
+.screen .musictag { position: absolute; left: 10px; top: 8px; color: #fff; font-size: 11px; background: var(--music); padding: 3px 6px; border-radius: 4px; display: none; }
+.screen .ph { position: absolute; inset: 0; display: grid; place-items: center; color: #8a877f; font-size: 13px; text-align: center; padding: 16px; }
+.main { padding: 14px; min-width: 0; }
+.main h2, .side h2 { margin: 0 0 10px; font-size: 13px; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); }
+.drop { border: 2px dashed var(--line); border-radius: var(--radius); padding: 36px 16px; text-align: center; color: var(--muted); }
+.drop strong { color: var(--text); display: block; font-size: 16px; margin-bottom: 4px; }
+.lanes { position: relative; }
+.lane-label { font-size: 12px; color: var(--muted); margin: 8px 0 4px; display: flex; gap: 12px; flex-wrap: wrap; }
+.dot { display: inline-block; width: 9px; height: 9px; border-radius: 2px; margin-right: 5px; vertical-align: -1px; }
+canvas { width: 100%; height: 120px; display: block; border-radius: 8px; background: var(--panel-2); }
+.regions { position: relative; height: 22px; margin-top: 6px; }
+.region { position: absolute; top: 0; height: 22px; border-radius: 5px; background: var(--music-weak);
+  border: 1px solid var(--music); color: var(--music); font-size: 11px; padding: 2px 6px; overflow: hidden; white-space: nowrap; cursor: pointer; }
+.region.sel { background: var(--music); color: #fff; }
+.region.off { opacity: .45; border-style: dashed; }
+.speech { position: relative; height: 6px; margin-top: 6px; background: var(--panel-2); border-radius: 3px; }
+.speech i { position: absolute; top: 0; height: 6px; background: var(--speech); border-radius: 3px; }
+.playhead { position: absolute; top: 0; bottom: 0; width: 2px; background: var(--danger); pointer-events: none; }
+.ruler { display: flex; justify-content: space-between; color: var(--muted); font-size: 11px; margin-top: 4px; }
+.side { grid-area: side; padding: 14px; display: flex; flex-direction: column; gap: 16px; }
+.group { display: grid; gap: 8px; }
+.row { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.hint { color: var(--muted); font-size: 12px; }
+.seg { display: inline-flex; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; }
+.seg button { border: 0; background: transparent; padding: 7px 12px; }
+.seg button.on { background: var(--accent); color: #fff; }
+input[type=range] { width: 100%; accent-color: var(--accent); }
+.switch { position: relative; width: 38px; height: 22px; border-radius: 999px; background: var(--line); border: 0; flex: none; }
+.switch::after { content: ""; position: absolute; top: 3px; left: 3px; width: 16px; height: 16px; border-radius: 50%; background: #fff; transition: left .15s; }
+.switch.on { background: var(--accent); }
+.switch.on::after { left: 19px; }
+.transport { padding: 10px 14px; display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.time { font-variant-numeric: tabular-nums; color: var(--muted); }
+.queue { border-top: 1px solid var(--line); padding-top: 12px; }
+.qitem { display: grid; gap: 4px; padding: 6px 0; }
+.bar { height: 5px; background: var(--panel-2); border-radius: 3px; overflow: hidden; }
+.bar i { display: block; height: 100%; background: var(--accent); }
+.foot { grid-column: 1 / -1; text-align: center; color: var(--muted); font-size: 12px; }
+.foot a { color: var(--muted); }
+dialog { border: 1px solid var(--line); border-radius: var(--radius); background: var(--panel); color: var(--text); max-width: 560px; width: calc(100% - 32px); }
+dialog::backdrop { background: rgba(0,0,0,.35); }
+dialog ul { padding-left: 18px; }
+.note { background: var(--panel-2); border-radius: 8px; padding: 8px 10px; font-size: 12px; color: var(--muted); }
+@media (max-width: 820px) {
+  .app { grid-template-columns: 1fr; grid-template-areas: "top" "col" "side"; }
+}
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="card top">
+    <span class="file" id="fname">No video yet</span>
+    <span class="meta" id="fmeta"></span>
+    <span class="badge">Processed on this computer, nothing uploaded</span>
+    <span class="spacer"></span>
+    <button class="btn ghost" id="theme">Theme</button>
+    <button class="btn primary" id="export" disabled>Export video</button>
+  </div>
+
+  <div class="col">
+  <section class="card video">
+    <h2 style="margin:0 0 10px;font-size:13px;text-transform:uppercase;letter-spacing:.04em;color:var(--muted)">Preview</h2>
+    <div class="screen">
+      <canvas id="vid" width="1280" height="720"></canvas>
+      <div class="ph" id="vidph">No video. The preview appears here; the picture is never re-encoded.</div>
+      <span class="musictag" id="musictag">Music here</span>
+      <span class="codec" id="codec" hidden>HEVC 10-bit, decoded by the OS</span>
+      <span class="tc" id="tc" hidden>00:00:00.000</span>
+    </div>
+  </section>
+  <section class="card main">
+    <h2>Timeline</h2>
+    <div id="empty" class="drop">
+      <strong>Drop a video here</strong>
+      MP4 or MOV, any length. The picture is copied as is; only the sound changes.
+      <div style="margin-top:14px"><button class="btn primary" id="load">Open sample: vlog_street_market.mp4</button></div>
+    </div>
+    <div id="work" hidden>
+      <div class="lane-label">
+        <span><span class="dot" style="background:var(--music)"></span>Music found (click to select)</span>
+        <span><span class="dot" style="background:var(--speech)"></span>Speech</span>
+        <span id="status" class="hint"></span>
+      </div>
+      <div class="lanes" id="lanes">
+        <canvas id="wave" width="1600" height="240"></canvas>
+        <div class="playhead" id="ph" style="left:0"></div>
+      </div>
+      <div class="regions" id="regions"></div>
+      <div class="speech" id="speech"></div>
+      <div class="ruler" id="ruler"></div>
+    </div>
+  </section>
+
+  <div class="card transport">
+    <button class="btn" id="play" disabled>Play</button>
+    <div class="seg" id="ab">
+      <button data-v="orig">Original</button>
+      <button data-v="clean" class="on">Cleaned</button>
+      <button data-v="music">Removed music</button>
+    </div>
+    <span class="time" id="time">0:00 / 0:00</span>
+    <span class="hint" id="abhint">Cleaned: what will be exported.</span>
+  </div>
+  </div>
+
+  <aside class="card side">
+    <div class="group">
+      <h2>Music removal</h2>
+      <div class="row"><span id="scope">All music regions</span><span class="hint" id="depthlbl">Full</span></div>
+      <input type="range" id="depth" min="0" max="3" step="1" value="3">
+      <div class="row hint"><span>Off</span><span>-20 dB</span><span>-30 dB</span><span>Full</span></div>
+      <div class="row"><span>Skip this region</span><button class="switch" id="skip" aria-label="Skip region"></button></div>
+      <div class="note">Removing music lowers the chance of a claim; it does not guarantee anything. Use it for music you do not have rights to.</div>
+    </div>
+    <div class="group">
+      <h2>Keep</h2>
+      <div class="row"><span>Sound effects</span><button class="switch on" id="sfx" aria-label="Keep sound effects"></button></div>
+      <div class="row"><span>Clean voice</span><button class="switch" id="voice" aria-label="Clean voice"></button></div>
+      <input type="range" id="vstr" min="0" max="100" value="60" disabled>
+      <div class="hint">Voice cleanup keeps laughter and shouts; lower it if the voice sounds thin.</div>
+    </div>
+    <div class="group">
+      <h2>Also export</h2>
+      <div class="row"><span>Stems as WAV (speech, music, effects)</span><button class="switch" id="stems"></button></div>
+      <div class="row"><span>Speech-only WAV for subtitles</span><button class="switch" id="sp"></button></div>
+    </div>
+    <div class="queue">
+      <h2>Queue</h2>
+      <div id="queue"><div class="hint">Drop more videos to process them one after another.</div></div>
+    </div>
+  </aside>
+
+  <div class="foot">Prototype with fake data. <a href="#" id="about">About and acknowledgements</a></div>
+</div>
+
+<dialog id="dlg"></dialog>
+
+<script>
+(() => {
+  const $ = id => document.getElementById(id);
+  const DUR = 612; // seconds, fake 10:12 video
+  const regions = [
+    { a: 38, b: 121, label: "Street band", depth: 3, skip: false },
+    { a: 205, b: 262, label: "Car radio", depth: 3, skip: false },
+    { a: 410, b: 538, label: "Cafe playlist", depth: 3, skip: false }
+  ];
+  const speechSpans = [[0,36],[44,70],[90,118],[140,200],[214,250],[270,330],[345,400],[418,470],[488,530],[550,612]];
+  let sel = -1, playing = false, t = 0, ab = "clean", timer = null, loaded = false;
+  const depthNames = ["Off", "-20 dB", "-30 dB", "Full"];
+  const depthGain = [1, 0.1, 0.032, 0];
+  const fmt = s => `${Math.floor(s/60)}:${String(Math.floor(s%60)).padStart(2,"0")}`;
+  const css = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+
+  // Deterministic fake waveform: speech bursts + music bed inside regions.
+  function sample(x) {
+    const s = x * DUR;
+    let v = 0.08 + 0.05 * Math.abs(Math.sin(s * 3.1));
+    if (speechSpans.some(([a,b]) => s >= a && s <= b)) v += 0.35 * Math.abs(Math.sin(s * 7.3) * Math.cos(s * 1.7));
+    const r = regions.find(r => s >= r.a && s <= r.b);
+    let m = 0;
+    if (r) m = 0.3 + 0.12 * Math.abs(Math.sin(s * 11.0));
+    return { base: v, music: m, r };
+  }
+
+  function draw() {
+    const c = $("wave"), g = c.getContext("2d"), W = c.width, H = c.height, mid = H / 2;
+    g.clearRect(0, 0, W, H);
+    for (const [i, r] of regions.entries()) {
+      g.fillStyle = css("--music-weak");
+      g.fillRect(r.a / DUR * W, 0, (r.b - r.a) / DUR * W, H);
+      if (i === sel) { g.strokeStyle = css("--music"); g.lineWidth = 3; g.strokeRect(r.a / DUR * W + 1, 1, (r.b - r.a) / DUR * W - 2, H - 2); }
+    }
+    for (let px = 0; px < W; px += 3) {
+      const { base, music, r } = sample(px / W);
+      let gm = 1;
+      if (r && !r.skip) gm = depthGain[r.depth];
+      let amp;
+      if (ab === "orig") amp = base + music;
+      else if (ab === "music") amp = r && !r.skip ? music * (1 - gm) : 0;
+      else amp = base + music * gm;
+      g.fillStyle = ab === "orig" ? css("--wave") : ab === "music" ? css("--music") : css("--wave-clean");
+      const h = Math.min(amp, 0.98) * mid;
+      g.fillRect(px, mid - h, 2, h * 2);
+    }
+  }
+
+  function renderRegions() {
+    const box = $("regions"); box.innerHTML = "";
+    regions.forEach((r, i) => {
+      const d = document.createElement("div");
+      d.className = "region" + (i === sel ? " sel" : "") + (r.skip ? " off" : "");
+      d.style.left = (r.a / DUR * 100) + "%";
+      d.style.width = ((r.b - r.a) / DUR * 100) + "%";
+      d.textContent = `${r.label} ${fmt(r.a)}`;
+      d.title = `${r.label}, ${fmt(r.a)} to ${fmt(r.b)}`;
+      d.onclick = () => { sel = sel === i ? -1 : i; if (sel >= 0) { t = r.a; } sync(); };
+      box.appendChild(d);
+    });
+    const sp = $("speech"); sp.innerHTML = "";
+    for (const [a, b] of speechSpans) {
+      const i = document.createElement("i");
+      i.style.left = (a / DUR * 100) + "%"; i.style.width = ((b - a) / DUR * 100) + "%";
+      sp.appendChild(i);
+    }
+    const ru = $("ruler"); ru.innerHTML = "";
+    for (let k = 0; k <= 6; k++) { const s = document.createElement("span"); s.textContent = fmt(DUR * k / 6); ru.appendChild(s); }
+  }
+
+
+  function drawVideo() {
+    const c = $("vid"), g = c.getContext("2d"), W = c.width, H = c.height;
+    if (!loaded) { g.fillStyle = "#000"; g.fillRect(0, 0, W, H); return; }
+    const k = t / DUR;
+    const sky = g.createLinearGradient(0, 0, 0, H);
+    sky.addColorStop(0, `hsl(${200 + 40 * Math.sin(k * 6)}, 45%, 62%)`);
+    sky.addColorStop(1, `hsl(${30 + 20 * Math.cos(k * 4)}, 40%, 38%)`);
+    g.fillStyle = sky; g.fillRect(0, 0, W, H);
+    for (let i = 0; i < 7; i++) {
+      const x = ((i * 211 + t * 38) % (W + 300)) - 150;
+      g.fillStyle = `hsl(${(i * 47) % 360}, 55%, ${40 + (i % 3) * 8}%)`;
+      g.fillRect(x, H * 0.52 + (i % 2) * 22, 120, 170);
+      g.fillStyle = "rgba(255,255,255,.85)";
+      g.fillRect(x + 12, H * 0.52 + (i % 2) * 22 + 12, 96, 28);
+    }
+    g.fillStyle = "rgba(20,20,20,.9)";
+    const px = W * 0.5 + 60 * Math.sin(t * 0.7);
+    g.beginPath(); g.arc(px, H * 0.46, 34, 0, 7); g.fill();
+    g.fillRect(px - 38, H * 0.46 + 34, 76, 150);
+    const h = Math.floor(t / 3600), m = Math.floor(t / 60) % 60, sec = Math.floor(t) % 60, ms = Math.floor((t % 1) * 1000);
+    $("tc").textContent = `${String(h).padStart(2,"0")}:${String(m).padStart(2,"0")}:${String(sec).padStart(2,"0")}.${String(ms).padStart(3,"0")}`;
+    const r = regions.find(r => t >= r.a && t <= r.b);
+    $("musictag").style.display = r ? "block" : "none";
+    if (r) $("musictag").textContent = r.skip ? `Music kept: ${r.label}` : `Music removed: ${r.label}`;
+  }
+
+  function sync() {
+    const r = sel >= 0 ? regions[sel] : null;
+    $("scope").textContent = r ? `${r.label} (${fmt(r.a)} to ${fmt(r.b)})` : "All music regions";
+    const d = r ? r.depth : regions[0].depth;
+    $("depth").value = d; $("depthlbl").textContent = depthNames[d];
+    $("skip").classList.toggle("on", !!(r && r.skip));
+    $("skip").disabled = !r;
+    $("ph").style.left = (t / DUR * 100) + "%";
+    $("time").textContent = `${fmt(t)} / ${fmt(DUR)}`;
+    renderRegions(); draw(); drawVideo();
+  }
+
+  $("load").onclick = () => {
+    loaded = true;
+    $("empty").hidden = true; $("work").hidden = false;
+    $("fname").textContent = "vlog_street_market.mp4";
+    $("fmeta").textContent = "10:12, 1080p, AAC 48 kHz";
+    $("status").textContent = "Analysing...";
+    $("vidph").hidden = true; $("tc").hidden = false; $("codec").hidden = false;
+    $("play").disabled = true;
+    sync();
+    setTimeout(() => {
+      $("status").textContent = "3 music regions found, separated in 19 s (fake)";
+      $("play").disabled = false; $("export").disabled = false;
+      $("queue").innerHTML = `
+        <div class="qitem"><div class="row"><span>vlog_street_market.mp4</span><span class="hint">ready</span></div><div class="bar"><i style="width:100%"></i></div></div>
+        <div class="qitem"><div class="row"><span>stream_2026-09-20.mov</span><span class="hint">waiting, 3:02:11</span></div><div class="bar"><i style="width:0%"></i></div></div>`;
+    }, 900);
+  };
+
+  $("depth").oninput = e => {
+    const v = +e.target.value;
+    if (sel >= 0) regions[sel].depth = v; else regions.forEach(r => r.depth = v);
+    sync();
+  };
+  $("skip").onclick = () => { if (sel >= 0) { regions[sel].skip = !regions[sel].skip; sync(); } };
+  for (const id of ["sfx", "stems", "sp"]) $(id).onclick = e => e.currentTarget.classList.toggle("on");
+  $("voice").onclick = e => { const on = e.currentTarget.classList.toggle("on"); $("vstr").disabled = !on; };
+
+  const hints = { orig: "Original: the sound as recorded.", clean: "Cleaned: what will be exported.", music: "Removed music: listen for speech or effects that should not be here." };
+  $("ab").onclick = e => {
+    const b = e.target.closest("button"); if (!b) return;
+    ab = b.dataset.v;
+    [...$("ab").children].forEach(x => x.classList.toggle("on", x === b));
+    $("abhint").textContent = hints[ab]; draw();
+  };
+
+  $("play").onclick = () => {
+    playing = !playing; $("play").textContent = playing ? "Pause" : "Play";
+    clearInterval(timer);
+    if (playing) timer = setInterval(() => { t = (t + 1.5) % DUR; $("ph").style.left = (t / DUR * 100) + "%"; $("time").textContent = `${fmt(t)} / ${fmt(DUR)}`; drawVideo(); }, 100);
+  };
+  $("lanes").onclick = e => {
+    if (!loaded) return;
+    const rect = e.currentTarget.getBoundingClientRect();
+    t = Math.max(0, Math.min(DUR, (e.clientX - rect.left) / rect.width * DUR));
+    sync();
+  };
+
+  const dlg = $("dlg");
+  function show(html) { dlg.innerHTML = html + `<div style="text-align:right;margin-top:12px"><button class="btn" id="close">Close</button></div>`; dlg.showModal(); $("close").onclick = () => dlg.close(); }
+  $("export").onclick = () => {
+    const extras = [$("stems").classList.contains("on") && "stems (WAV)", $("sp").classList.contains("on") && "speech-only WAV"].filter(Boolean);
+    show(`<h3 style="margin-top:0">Export</h3>
+      <p><strong>vlog_street_market (clean).mp4</strong> in the same folder.</p>
+      <ul><li>Video: copied as is, no re-encoding.</li>
+      <li>Audio: AAC 256 kbps, music removed in ${regions.filter(r => !r.skip).length} of ${regions.length} regions.</li>
+      ${extras.length ? `<li>Also: ${extras.join(", ")}.</li>` : ""}</ul>
+      <p class="hint">The original file is never changed.</p>`);
+  };
+  $("about").onclick = e => {
+    e.preventDefault();
+    show(`<h3 style="margin-top:0">About and acknowledgements</h3>
+      <p>Engine: charon-audio (MIT). Runtime: ONNX Runtime (MIT, with Microsoft third-party notices). Audio decoding: Symphonia (MPL-2.0, source link). Video: Apple AVFoundation.</p>
+      <p>Models:</p>
+      <ul><li>Dialogue, music and effects separation: MRX, Mitsubishi Electric Research Laboratories (MIT), or TIGER-DnR (Apache-2.0), converted to ONNX.</li>
+      <li>Music and speech detection: TVSM (Apache-2.0).</li>
+      <li>Voice cleanup: DPDFNet, Ceva (Apache-2.0).</li></ul>
+      <p class="hint">Full license texts: Help, Acknowledgements.txt</p>`);
+  };
+
+  $("theme").onclick = () => {
+    const r = document.documentElement;
+    const dark = r.dataset.theme ? r.dataset.theme === "dark" : matchMedia("(prefers-color-scheme: dark)").matches;
+    r.dataset.theme = dark ? "light" : "dark";
+    draw();
+  };
+  window.addEventListener("resize", draw);
+})();
+</script>
+</body>
+</html>
