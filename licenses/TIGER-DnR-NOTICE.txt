@@ -1,0 +1,17 @@
+tiger_music.onnx
+
+Derived from the TIGER-DnR checkpoint by Mohan Xu, Kai Li, Guo Chen and
+Xiaolin Hu (ICLR 2025), published at https://huggingface.co/JusperLee/TIGER-DnR
+under the Apache License 2.0 (licenses/TIGER-DnR-LICENSE-APACHE.txt).
+
+Changes made (Apache License 2.0, section 4(b)): the checkpoint was
+converted to ONNX by charon-audio's tools/export/export_tiger.py. Only
+the music network and its music output are kept; the STFT and inverse
+STFT were moved out of the graph and are computed by the application.
+The weight values were not changed. Source checkpoint SHA-256
+dd1c696e72f6adea0085ef1af640882a8260519ad666422835e387a5b4abdd2a.
+
+Training data, as stated in the TIGER paper: Divide and Remaster (DnR)
+version 1, which mixes LibriSpeech speech, Free Music Archive music and
+FSD50K sound effects. Many of those music tracks and some of the sound
+effects are licensed by their authors for non-commercial use only.

@@ -1,0 +1,30 @@
+[package]
+name = "charon-music-removal"
+version = "0.1.0"
+edition = "2021"
+rust-version = "1.95"
+description = "Remove music from videos, locally: a macOS demo built on charon-audio"
+publish = false
+license = "FSL-1.1-MIT"
+
+[dependencies]
+charon-audio = { path = "../charon-audio", default-features = false, features = ["ort-backend", "coreml"] }
+eframe = "0.36"
+egui = "0.36"
+rfd = "0.17"
+cpal = "0.18"
+anyhow = "1"
+log = "0.4"
+env_logger = "0.11"
+ndarray = "0.15"
+
+[target.'cfg(target_os = "macos")'.dependencies]
+objc2 = "0.6"
+objc2-foundation = "0.3"
+objc2-av-foundation = { version = "0.3", features = ["objc2-core-media", "objc2-core-graphics", "objc2-core-foundation", "block2", "objc2-avf-audio"] }
+objc2-core-media = { version = "0.3", features = ["objc2-core-video"] }
+objc2-core-video = "0.3"
+objc2-core-graphics = "0.3"
+objc2-core-foundation = "0.3"
+block2 = "0.6"
+objc2-avf-audio = "0.3"
