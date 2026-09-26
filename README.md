@@ -44,14 +44,17 @@ macOS 13 or later on Apple Silicon.
 
 ## Build
 
-The app depends on charon-audio by path (`../charon-audio`), and needs
-the model file:
+The app uses charon-audio 0.1.2 from crates.io. It needs the model file,
+which charon-audio's export script produces from the published TIGER-DnR
+checkpoint (the script is in the charon-audio repository, not in the
+crate; see its `docs/MODELS.md`). With the charon-audio repository cloned
+next to this one:
 
 ```bash
 python ../charon-audio/tools/export/export_tiger.py --repo TIGER --weights TIGER-DnR --out tiger_music.onnx --dynamo --opset 18
 ```
 
-(see charon-audio's `docs/MODELS.md`), then:
+Then:
 
 ```bash
 tools/bundle.sh tiger_music.onnx

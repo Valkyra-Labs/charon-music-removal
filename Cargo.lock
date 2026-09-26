@@ -720,6 +720,8 @@ dependencies = [
 [[package]]
 name = "charon-audio"
 version = "0.1.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "fa79b94fc3cdc9afc87de975fc266a2d948d0c539e692f447b9eccf315bf8b32"
 dependencies = [
  "flacenc",
  "hound",
